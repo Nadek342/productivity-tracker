@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clickable Dots</title>
+<style>
+  body {
+    background-color: #023e8a;
+    font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+    color: white;
+    margin: 0;
+    padding: 0;
+  }
+  h2 {
+    text-align: center;
+    margin: 20px 0;
+    font-size: 2rem;
+    color: #caf0f8;
+  }
+  .main-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+  .dot-container {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    position: relative;
+    padding-top: 20px;
+    width: 100%;
+  }
+  .dot {
+    width: 30px;
+    height: 30px;
+    background-color: #ccc;
+    border-radius: 50%;
+    margin: 10px;
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.3s;
+  }
+  .dot.active {
+    background-color: #03045e;
+  }
+  .dot::after {
+    content: attr(data-content);
+    display: block;
+    width: 100px;
+    height: 20px;
+    background-color: #fff;
+    border: 1px solid #000;
+    position: absolute;
+    left: 50%;
+    top: -30px;
+    transform: translateX(-50%);
+    padding: 5px;
+    box-sizing: border-box;
+    white-space: nowrap;
+    color: #000;
+    font-size: 0.8rem;
+    opacity: 1;
+    transition: opacity 0.3s;
+  }
+  .dot.active::after {
+    background-color: #caf0f8;
+    border-color: #03045e;
+  }
+  .line, .line2, .vertical-line {
+    background-color: #000;
+  }
+  .line, .line2 {
+    height: 2px;
+  }
+  .line {
+    width: 50px;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .vertical-line {
+    width: 2px;
+    height: calc(100% + 20px);
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: -1;
+  }
+  .date-container {
+    color: white;
+    background-color: #023e8a;
+    padding: 5px;
+    box-sizing: border-box;
+    z-index: 10;
+  }
+  .count-container {
+    text-align: center;
+    color: #caf0f8;
+    margin-top: 10px;
+  }
+  .chart-container {
+    width: 100%;
+    max-width: 100%;
+    margin-top: 20px;
+  }
+  canvas {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    max-width: 100%;
+    margin: 0 auto;
+  }
+</style>
+</head>
+<body>
+<h2>Productivity</h2>
+
+<div class="date-container" id="date"></div>
+<div class="main-container">
+  <div class="dot-container">
+    <div class="dot" data-content="Breakfast" onclick="toggleDot(1)">
+      <div class="line"></div>
+      <div class="vertical-line"></div>
+    </div>
+    <div class="dot" data-content="Face Routine" onclick="toggleDot(2)">
+      <div class="line"></div>
+      <div class="vertical-line"></div>
+    </div>
+    <div class="dot" data-content="Proper Lunch" onclick="toggleDot(3)">
+      <div class="line"></div>
+      <div class="vertical-line"></div>
+    </div>
+    <div class="dot" data-content="Proper Dinner" onclick="toggleDot(4)">
+      <div class="line"></div>
+      <div class="vertical-line"></div>
+    </div>
+    <div class="dot" data-content="6 Sets" onclick="toggleDot(5)">
+      <div class="line"></div>
+      <div class="vertical-line"></div>
+    </div>
+    <div class="dot" data-content="Cardio" onclick="toggleDot(6)">
+      <div class="line"></div>
+      <div class="vertical-line"></div>
+    </div>
+    <div class="dot" data-content="Calorie Goal" onclick="toggleDot(7)">
+      <div class="line"></div>
+      <div class="vertical-line"></div>
+    </div>
+    <div class="dot" data-content="Macro Goal" onclick="toggleDot(8)">
+      <div class="line"></div>
+      <div class="vertical-line"></div>
+    </div>
+    <div class="dot" data-content="Water Goal" onclick="toggleDot(9)">
+      <div class="line"></div>
+      <div class="vertical-line"></div>
+    </div>
+    <div class="dot" data-content="Social Goal" onclick="toggleDot(10)">
+      <div class="line"></div>
+      <div class="vertical-line"></div>
+    </div>
+    <div class="dot" data-content="Education" onclick="toggleDot(11)">
+      <div class="line"></div>
+      <div class="vertical-line"></div>
+    </div>
+    <div class="count-container" id="count">Filled boxes: 0</div>
+  </div>
+
+  <div class="chart-container">
+    <canvas id="productivityChart"></canvas>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  var activeCount = 0;
+  var weekData = JSON.parse(localStorage.getItem('weekData')) || [0, 0, 0, 0, 0, 0, 0];
+  var today = new Date().getDay();
+  var savedDay = localStorage.getItem('savedDay');
+
+  if (savedDay === null || savedDay != today) {
+    localStorage.setItem('savedDay', today);
+    weekData[today] = 0;
+    localStorage.setItem('weekData', JSON.stringify(weekData));
+  }
+
+  var chart;
+
+  function toggleDot(dotNumber) {
+    var dot = document.getElementsByClassName('dot')[dotNumber - 1];
+    dot.classList.toggle('active');
+    if (dot.classList.contains('active')) {
+      activeCount++;
+    } else {
+      activeCount--;
+    }
+    document.getElementById('count').textContent = "Filled boxes: " + activeCount;
+    weekData[today] = activeCount;
+    localStorage.setItem('weekData', JSON.stringify(weekData));
+    updateChart();
+  }
+
+  function resetDots() {
+    var dots = document.getElementsByClassName('dot');
+    for (var i = 0; i < dots.length; i++) {
+      dots[i].classList.remove('active');
+    }
+    activeCount = 0;
+    document.getElementById('count').textContent = "Filled boxes: " + activeCount;
+  }
+
+  function checkResetTime() {
+    var now = new Date();
+    var resetHour = 23; 
+    var resetMinute = 59;
+    var resetSecond = 0;
+
+    if (now.getHours() === resetHour && now.getMinutes() === resetMinute && now.getSeconds() === resetSecond) {
+      resetDots();
+      activeCount = 0;
+      weekData[now.getDay()] = 0;
+      localStorage.setItem('weekData', JSON.stringify(weekData));
+      localStorage.setItem('savedDay', now.getDay());
+      updateChart();
+    }
+  }
+
+  setInterval(checkResetTime, 1000);
+
+  function displayDate() {
+    var now = new Date();
+    var dateString = now.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+    document.getElementById('date').textContent = dateString;
+  }
+
+  function initializeChart() {
+    var ctx = document.getElementById('productivityChart').getContext('2d');
+    chart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+        datasets: [{
+          label: 'Productivity',
+          data: weekData,
+          backgroundColor: [
+            'rgba(255, 99, 132, 0.2)',
+            'rgba(54, 162, 235, 0.2)',
+            'rgba(255, 206, 86, 0.2)',
+            'rgba(75, 192, 192, 0.2)',
+            'rgba(153, 102, 255, 0.2)',
+            'rgba(255, 159, 64, 0.2)',
+            'rgba(255, 99, 132, 0.2)'
+          ],
+          borderColor: [
+            'rgba(255, 99, 132, 1)',
+            'rgba(54, 162, 235, 1)',
+            'rgba(255, 206, 86, 1)',
+            'rgba(75, 192, 192, 1)',
+            'rgba(153, 102, 255, 1)',
+            'rgba(255, 159, 64, 1)',
+            'rgba(255, 99, 132, 1)'
+          ],
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 11,
+            grid: {
+              color: 'rgba(255, 255, 255, 0.2)'
+            },
+            ticks: {
+              color: 'white'
+            }
+          },
+          x: {
+            grid: {
+              color: 'rgba(255, 255, 255, 0.2)'
+            },
+            ticks: {
+              color: 'white'
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: true,
+            labels: {
+              color: 'white'
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function updateChart() {
+    chart.data.datasets[0].data = weekData;
+    chart.update();
+  }
+
+  function loadDots() {
+    var savedDots = JSON.parse(localStorage.getItem('savedDots')) || [];
+    var dots = document.getElementsByClassName('dot');
+    for (var i = 0; i < savedDots.length; i++) {
+      if (savedDots[i]) {
+        dots[i].classList.add('active');
+      } else {
+        dots[i].classList.remove('active');
+      }
+    }
+    activeCount = savedDots.filter(Boolean).length;
+    document.getElementById('count').textContent = "Filled boxes: " + activeCount;
+  }
+
+  function saveDots() {
+    var dots = document.getElementsByClassName('dot');
+    var savedDots = [];
+    for (var i = 0; i < dots.length; i++) {
+      savedDots.push(dots[i].classList.contains('active'));
+    }
+    localStorage.setItem('savedDots', JSON.stringify(savedDots));
+  }
+
+  window.addEventListener('beforeunload', saveDots);
+
+  document.addEventListener('DOMContentLoaded', function() {
+    displayDate();
+    initializeChart();
+    loadDots();
+    updateChart();
+  });
+</script>
+</body>
+</html>
